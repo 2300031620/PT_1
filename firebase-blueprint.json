@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with authentication and role assignments",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "analyst"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Device": {
+      "title": "Device",
+      "description": "Monitored Windows endpoints running the watchdog agent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hostname": { "type": "string" },
+        "os": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "status": { "type": "string", "enum": ["PROTECTED", "MONITORING", "CONTAINED", "OFFLINE"] },
+        "riskScore": { "type": "number" },
+        "monitoredFolders": { "type": "array" },
+        "lastHeartbeat": { "type": "string" }
+      },
+      "required": ["hostname", "status", "riskScore"]
+    },
+    "SecurityEvent": {
+      "title": "SecurityEvent",
+      "description": "File access and modification telemetry events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["CREATE", "MODIFY", "DELETE", "RENAME"] },
+        "filePath": { "type": "string" },
+        "oldPath": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isProtected": { "type": "boolean" },
+        "isSuspicious": { "type": "boolean" },
+        "details": { "type": "string" },
+        "processName": { "type": "string" }
+      },
+      "required": ["deviceId", "eventType", "filePath", "timestamp"]
+    },
+    "Incident": {
+      "title": "Incident",
+      "description": "Ransomware detection alerts and triggered incidents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "incidentId": { "type": "string" },
+        "riskScore": { "type": "number" },
+        "severity": { "type": "string", "enum": ["NORMAL", "SUSPICIOUS", "HIGH", "CRITICAL"] },
+        "deviceId": { "type": "string" },
+        "filesAffected": { "type": "number" },
+        "status": { "type": "string", "enum": ["OPEN", "INVESTIGATING", "CONTAINED", "RESOLVED"] },
+        "reason": { "type": "string" },
+        "recommendedAction": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["incidentId", "riskScore", "severity", "deviceId", "status"]
+    },
+    "ProtectedFile": {
+      "title": "ProtectedFile",
+      "description": "High priority files guarded against tampering and encryption",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "priority": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+        "sha256": { "type": "string" },
+        "sizeBytes": { "type": "number" },
+        "lastVerified": { "type": "string" }
+      },
+      "required": ["name", "path", "priority"]
+    },
+    "ArchiveRecord": {
+      "title": "ArchiveRecord",
+      "description": "Snapshots and ZIP/7Z archive backups of protected files",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "archiveId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "filesIncluded": { "type": "array" },
+        "fileHashes": { "type": "array" },
+        "archiveSize": { "type": "string" },
+        "format": { "type": "string", "enum": ["ZIP", "7Z"] },
+        "status": { "type": "string", "enum": ["READY", "CREATING", "FAILED"] }
+      },
+      "required": ["archiveId", "createdAt", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and operator action logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "user": { "type": "string" },
+        "action": { "type": "string" },
+        "device": { "type": "string" },
+        "result": { "type": "string" }
+      },
+      "required": ["timestamp", "user", "action", "result"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and role assignments"
+    },
+    "/devices/{deviceId}": {
+      "schema": "Device",
+      "description": "Endpoints being monitored by the detection watchdog"
+    },
+    "/events/{eventId}": {
+      "schema": "SecurityEvent",
+      "description": "File system operations and anomaly events"
+    },
+    "/incidents/{incidentId}": {
+      "schema": "Incident",
+      "description": "Ransomware detection alerts and containment logs"
+    },
+    "/protected_files/{fileId}": {
+      "schema": "ProtectedFile",
+      "description": "Files flagged for integrity protection and backup priority"
+    },
+    "/archives/{archiveId}": {
+      "schema": "ArchiveRecord",
+      "description": "Backups and snapshot archives"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Operator and automated system audit trail"
+    }
+  }
+}
+

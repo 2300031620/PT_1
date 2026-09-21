@@ -1,0 +1,10 @@
+{
+  "device_id": "Anuradha",
+  "is_contained": true,
+  "status": "CONTAINED",
+  "contained_at": "2026-09-21T05:13:29.398657+00:00",
+  "containment_reason": "Rapid file modifications (4 in 10s); Suspicious extension changes detected (known ransomware signature: sample_doc_1.txt.locked)",
+  "contained_by": "Automated Behavioral Heuristics (admin)",
+  "safe_demo_mode": true,
+  "last_updated": "2026-09-21T05:13:29.399819+00:00"
+}

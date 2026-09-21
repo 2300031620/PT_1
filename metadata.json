@@ -1,0 +1,6 @@
+{
+  "name": "Ransomware Detection and Prevention System",
+  "description": "A lightweight cybersecurity monitoring and containment system detecting suspicious file-system behavior and ransomware patterns.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
