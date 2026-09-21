@@ -1,167 +1,179 @@
-# Ransomware Detection and Prevention System
-An academic cybersecurity project demonstrating lightweight heuristic detection and containment of ransomware-like file-system behavior on Windows endpoints.
+# Windows Python Endpoint Agent (Watchdog File Monitor)
+
+A lightweight endpoint monitoring agent designed for Windows endpoints to monitor user-specified folders in real time using the Python `watchdog` library.
+
+The agent intercepts file system operations and streams structured event notifications to the FastAPI backend:
+- `CREATE`
+- `MODIFY`
+- `DELETE`
+- `MOVE/RENAME`
 
 ---
 
-## Architecture Overview
+## 1. Prerequisites
 
-```
-Windows Computer (Target Endpoint)
-       ↓
-Python Endpoint Agent (watchdog file-system observer)
-       ↓
-Local Ransomware Detection & Rule-Based Scoring Engine
-       ↓
-Backend API (FastAPI) / (Optional Future Raspberry Pi Local Server)
-       ↓
-Firebase (Firestore Database & Auth)
-       ↓
-React Web Dashboard
-```
+- **Windows 10 / 11** or **Windows Server** (or macOS/Linux for development)
+- **Python 3.8+** installed ([python.org](https://www.python.org/downloads/))
+- Ensure Python and `pip` are added to your system `PATH`.
 
 ---
 
-## 1. How to Install
+## 2. Installation
 
-### Prerequisites
-- **Node.js** v18+ and **npm** / **bun**
-- **Python** 3.9+ and **pip**
-- A modern web browser
+Open PowerShell or Command Prompt on your target machine:
 
-### Clone & Dependencies Setup
-```bash
-# 1. Install Web Dashboard dependencies
-npm install
-
-# 2. Install Backend dependencies
-cd backend
-pip install -r requirements.txt
-cd ..
-
-# 3. Install Endpoint Agent dependencies
+```powershell
+# Navigate to the endpoint_agent directory
 cd endpoint_agent
+
+# (Recommended) Create and activate a virtual environment
+python -m venv venv
+.\venv\Scripts\activate
+
+# Install required dependencies (watchdog and requests)
 pip install -r requirements.txt
-cd ..
 ```
 
 ---
 
-## 2. How to Configure Firebase
+## 3. Configuration
 
-The system comes pre-configured with Cloud Firestore integration:
-- **Project ID**: `civil-acolyte-7xfhk`
-- **Configuration File**: `src/firebase/config.ts` (and `firebase-applet-config.json`)
-- **Security Rules**: Deployed in `firestore.rules`
+### Monitored Folders
+You can configure monitored directories in 3 ways:
 
-### Firestore Collections:
-- `users`: Security analysts and system operators
-- `devices`: Monitored endpoints (e.g., `WINDOWS-PC-01`)
-- `events`: File creation, modification, deletion, and rename telemetry
-- `incidents`: Escalated security alerts with severity and recommended containment
-- `protected_files`: Prioritized file inventory with SHA-256 integrity hashes
-- `archives`: Immutable backup snapshots with cryptographic file manifests
-- `audit_logs`: Audit trail for compliance and non-repudiation
+1. **Command Line Argument (Highest Precedence):**
+   ```powershell
+   python agent.py --dirs "C:\Users\YourUser\Documents" "C:\TestFolder"
+   ```
 
-*(Note: If running without internet connectivity, the web app automatically utilizes a persistent local storage cache, ensuring continuous operation).*
+2. **Environment Variable:**
+   ```powershell
+   # In PowerShell
+   $env:MONITORED_DIRS="C:\Users\YourUser\Documents,C:\TestFolder"
+   python agent.py
 
----
+   # In CMD
+   set MONITORED_DIRS=C:\Users\YourUser\Documents,C:\TestFolder
+   python agent.py
+   ```
 
-## 3. How to Start the Frontend
+3. **In `config.py`:**
+   Modify `DEFAULT_MONITORED_DIRS` directly in `config.py`:
+   ```python
+   DEFAULT_MONITORED_DIRS = [
+       os.path.expanduser(r"~\Documents"),
+       os.path.expanduser(r"~\Desktop"),
+       os.path.expanduser(r"~\TestFolder"),
+   ]
+   ```
 
-Start the Vite development dashboard server:
+> **⚠️ SAFETY WARNING: Do NOT monitor the entire `C:\` drive.**
+> Monitoring root drives like `C:\` captures hundreds of internal OS pagefile, swap, and logging events per second, causing severe system lag. The agent includes an automatic safety guard that disallows root drive paths. Always select specific subdirectories.
 
-```bash
-npm run dev
+### Backend API URL
+By default, events are sent to:
+`http://localhost:8000/api`
+
+To direct events to a remote server, Raspberry Pi, or custom port:
+```powershell
+python agent.py --backend "http://192.168.1.150:8000/api"
+```
+Or set the environment variable:
+```powershell
+$env:BACKEND_API_URL="http://192.168.1.150:8000/api"
 ```
 
-Open your browser and navigate to:
-`http://localhost:3000`
-
 ---
 
-## 4. How to Start the Backend
+## 4. Running the Agent
 
-The FastAPI backend exposes the REST API required by endpoint agents and dashboards:
-
-```bash
+### Start the FastAPI Backend First (in a separate terminal)
+```powershell
 # From the project root
 uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Interactive OpenAPI Swagger documentation will be accessible at:
-`http://localhost:8000/docs`
-
-Available REST endpoints:
-- `POST /api/events` - Ingest raw file operations
-- `GET /api/events` - Query event log
-- `POST /api/incidents` - Record detected incidents
-- `GET /api/incidents` - Query active/resolved incidents
-- `GET /api/devices` - Query monitored endpoint statuses
-- `GET /api/protected-files` - List prioritized files
-- `POST /api/protected-files` - Add protected file
-- `GET /api/archives` - Query archive manifests
-- `POST /api/archives` - Generate new archive snapshot
-- `POST /api/containment` - Issue containment or release command
-
----
-
-## 5. How to Start the Windows Endpoint Agent
-
-On the target Windows computer:
-
-1. Edit `endpoint_agent/config.py` if you wish to adjust monitored paths (e.g. `C:\Users\<YourUser>\Documents`, `C:\ProtectedFiles`).
-2. Run the agent:
-
-```bash
-cd endpoint_agent
+### Start the Endpoint Agent
+```powershell
+# In endpoint_agent folder
 python agent.py
 ```
 
-The agent will attach Python `watchdog` hooks to the specified directories, monitoring for:
-- File creations (`CREATE`)
-- File modifications (`MODIFY`)
-- File deletions (`DELETE`)
-- File renames (`RENAME`)
+### Dry-Run Mode (Test without sending to backend)
+```powershell
+python agent.py --dry-run
+```
 
 ---
 
-## 6. How to Test the System Safely Using Harmless Test Files
+## 5. Testing & Verification
 
-> **SAFETY MANDATE**: This project uses rule-based heuristic detection and DOES NOT contain malicious code. Testing is conducted using benign `.txt` files in a dedicated temporary test directory.
+We provide an automated test script (`test_events.py`) to verify that all 4 file operations are detected:
 
-### Method A: Using the Interactive Web Dashboard Simulation Lab (Instant)
-1. In the Web Dashboard, click the **"Test / Simulate Lab"** button in the header.
-2. Choose one of four test scenarios:
-   - **Test 1: Normal Single File Modification** -> Risk remains 0–29 (Normal)
-   - **Test 2: Rapid Burst of Modifications** -> Risk rises to 30–59 (Suspicious)
-   - **Test 3: Tampering with Protected File (`database.sql`)** -> Risk rises to 60–79 (High)
-   - **Test 4: Ransomware Encryption Simulation (`.locked` extension)** -> Risk reaches 80–100 (Critical), creates an incident (`INC-001`), and automatically triggers **Host Containment**.
-3. Verify the incident in the **Incidents** tab, inspect the **Recent Security Events**, and click **[RELEASE DEVICE]** once reviewed.
+1. Keep the `agent.py` terminal running.
+2. Open a **second** terminal window in `endpoint_agent/`:
+   ```powershell
+   python test_events.py
+   ```
+3. Press **Enter** to step through the automated sequence:
+   - **Step 1: CREATE** (`audit_sample.txt` created)
+   - **Step 2: MODIFY** (Appends text to `audit_sample.txt`)
+   - **Step 3: MOVE/RENAME** (`audit_sample.txt` -> `archived_sample.txt`)
+   - **Step 4: DELETE** (`archived_sample.txt` deleted)
 
-### Method B: Using the Python Simulation Script on Windows
-Run the provided benign testing script:
+### Expected Agent Output:
+```text
+========================================================================
+    WINDOWS PYTHON ENDPOINT AGENT (WATCHDOG FILE MONITOR)
+========================================================================
+  Device Hostname : WINDOWS-PC-01
+  IP Address      : 192.168.1.45
+  Operating System: Windows 11 (AMD64)
+  Backend API URL : http://localhost:8000/api (Dry Run: False)
+  Monitored Folders:
+    1. C:\Users\User\Documents
+    2. C:\TestFolder
+========================================================================
+[+] Connected to FastAPI Backend at http://localhost:8000/api
+[+] Actively monitoring: C:\TestFolder
+[*] Watchdog observer started. Monitoring 1 directory trees.
 
-```bash
-cd endpoint_agent
-python test_ransomware_simulation.py
+[+] CREATE      | 14:22:01 | audit_sample.txt      | Path: C:\TestFolder\audit_sample.txt
+[*] MODIFY      | 14:22:03 | audit_sample.txt      | Path: C:\TestFolder\audit_sample.txt
+[>] MOVE/RENAME | 14:22:05 | audit_sample.txt -> archived_sample.txt | Path: C:\TestFolder\archived_sample.txt
+[-] DELETE      | 14:22:07 | archived_sample.txt   | Path: C:\TestFolder\archived_sample.txt
 ```
-
-This creates a temporary `./test_sandbox` directory and allows you to test:
-1. Isolated benign file edit.
-2. Rapid multiple modifications.
-3. Benign ransomware renaming simulation (appending `.locked` to harmless sample files).
-4. Automatic clean-up and restoration.
 
 ---
 
-## Future Raspberry Pi Integration
+## 6. Event Schema Sent to FastAPI
 
-The architecture is prepared for a Raspberry Pi local server intermediary:
+Each event is transmitted as a JSON `POST` request to `/api/events`:
+
+```json
+{
+  "device_id": "WINDOWS-PC-01",
+  "event_type": "CREATE",
+  "file_path": "C:\\TestFolder\\audit_sample.txt",
+  "old_path": null,
+  "timestamp": "2026-09-20T11:22:01.456789+00:00",
+  "is_protected": false,
+  "is_suspicious": false,
+  "details": "File created: audit_sample.txt",
+  "process_name": "watchdog_agent"
+}
 ```
-Windows Endpoint Agent → Raspberry Pi Local Server → Firebase
+For `MOVE/RENAME`:
+```json
+{
+  "device_id": "WINDOWS-PC-01",
+  "event_type": "MOVE/RENAME",
+  "file_path": "C:\\TestFolder\\archived_sample.txt",
+  "old_path": "C:\\TestFolder\\audit_sample.txt",
+  "timestamp": "2026-09-20T11:22:05.123456+00:00",
+  "is_protected": false,
+  "is_suspicious": false,
+  "details": "File moved/renamed: audit_sample.txt -> archived_sample.txt",
+  "process_name": "watchdog_agent"
+}
 ```
-The Raspberry Pi can be enabled under **Settings** to act as an offline buffer storing:
-- Local incident reports
-- Security events queue
-- Audit logs
-- Protected file backup archives and manifests

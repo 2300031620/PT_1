@@ -1,0 +1,10 @@
+{
+  "device_id": "TEST-PC-01",
+  "is_contained": false,
+  "status": "PROTECTED",
+  "contained_at": null,
+  "containment_reason": null,
+  "contained_by": null,
+  "safe_demo_mode": true,
+  "last_updated": "2026-09-20T11:33:04.061844+00:00"
+}
